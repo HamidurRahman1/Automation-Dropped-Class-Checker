@@ -39,9 +39,27 @@ class Utility:
 
     @staticmethod
     def get_droplist_file():
-        if platform.system().lower() == "darwin":
-            Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR + "/_droplist/"
-
+        try:
+            if platform.system().lower() == "darwin":
+                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist/"
+            elif platform.system().lower() == "windows":
+                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist"
+            if not os.path.isdir(Utility._PATH_TO_FILE):
+                raise FileNotFoundError("Directory does not exists, dir="+Utility._PATH_TO_FILE)
+            files = list()
+            for file in os.listdir(Utility._PATH_TO_FILE):
+                if file.endswith(".xlsx"):
+                    files.append(file)
+            if len(files) != 1:
+                raise FileExistsError(Utility._PATH_TO_FILE+" must contain only one file but found "+str(len(files)))
+            Utility._PATH_TO_FILE += str(files[0])
+            return Utility._PATH_TO_FILE
+        except FileNotFoundError as fn:
+            print(fn)
+            quit(1)
+        except FileExistsError as fe:
+            print(fe)
+            quit(1)
 
     @staticmethod
     def get_login_cred():
@@ -154,7 +172,8 @@ class DroppedClassChecker:
 
 if __name__ == "__main__":
     try:
-        print()
+        drop_file = Utility.get_droplist_file()
+        print(drop_file, os.path.isfile(drop_file))
         # browser = webdriver.Chrome()
         # browser.maximize_window()
         # browser = FailedClassCheck.goto_login(browser, "Hamidur.rahman7", "")
