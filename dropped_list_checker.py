@@ -33,6 +33,10 @@ class Utility:
     DY_Student_Grade_Loc = "CRSE_GRADE$"
     DY_Student_Term_Loc = "CRSE_TERM$"
 
+    OS_WINDOWS = "windows"
+    OS_MAC = "darwin"
+    OS_LINUX = "linux"
+
     __DOWNLOAD_DIR = os.path.join(os.path.expanduser('~'), 'downloads')
 
     _PATH_TO_FILE = None
@@ -51,9 +55,9 @@ class Utility:
     def check_dir_and_get_drop_file():
         try:
             os_name = platform.system().lower()
-            if os_name == "darwin" or os_name == "linux":
+            if os_name == Utility.OS_MAC or os_name == Utility.OS_LINUX:
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
-            elif os_name == "windows":
+            elif os_name == Utility.OS_WINDOWS:
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
             if not os.path.isdir(Utility._PATH_TO_FILE):
                 raise FileNotFoundError(Utility.TAB+"Directory does not exists, dir="+Utility._PATH_TO_FILE)
@@ -67,10 +71,10 @@ class Utility:
             return Utility._PATH_TO_FILE
         except FileNotFoundError as fn:
             print(fn)
-            quit(1)
+            exit(0)
         except FileExistsError as fe:
             print(fe)
-            quit(1)
+            exit(0)
 
     @staticmethod
     def get_login_cred():
@@ -219,6 +223,7 @@ if __name__ == "__main__":
         # driver.close()
     except FileNotFoundError as f:
         print(f.args)
+        exit(0)
     finally:
         if type(csv_file) is str:
             Utility.delete_temp_csv(csv_file)
