@@ -1,6 +1,6 @@
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -36,9 +36,14 @@ class Utility:
 
     _PATH_TO_FILE = None
 
+    GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
+
+    INVALID_USERNAME_PASSWORD = "Invalid login username or password provided"
+    TAB = "\t=> "
+
     @staticmethod
     def delete_temp_csv(file_path):
-        if os.path.exists(file_path):
+        if os.path.isfile(file_path) and os.path.exists(file_path):
             os.remove(file_path)
 
     @staticmethod
@@ -46,17 +51,17 @@ class Utility:
         try:
             os_name = platform.system().lower()
             if os_name == "darwin" or os_name == "linux":
-                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist/"
+                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
             elif os_name == "windows":
-                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist"
+                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
             if not os.path.isdir(Utility._PATH_TO_FILE):
-                raise FileNotFoundError("Directory does not exists, dir="+Utility._PATH_TO_FILE)
+                raise FileNotFoundError(Utility.TAB+"Directory does not exists, dir="+Utility._PATH_TO_FILE)
             files = list()
             for file in os.listdir(Utility._PATH_TO_FILE):
                 if file.endswith(".xlsx"):
                     files.append(file)
             if len(files) != 1:
-                raise FileExistsError(Utility._PATH_TO_FILE+" must contain only one file but found "+str(len(files)))
+                raise FileExistsError(Utility.TAB+Utility._PATH_TO_FILE+" must contain only one file but found "+str(len(files)))
             Utility._PATH_TO_FILE += str(files[0])
             return Utility._PATH_TO_FILE
         except FileNotFoundError as fn:
@@ -85,9 +90,7 @@ class DroppedClassChecker:
     @staticmethod
     def goto_login(driver, username, password):
         try:
-            # username = username.lower()+Constant.CUNYfirst_Login_Domain
-            username = "username@login.cuny.edu"
-            password = "password"
+            username = username.lower()+Utility.Login_Domain
 
             driver.get(Utility.Login_Url)
             username_loc = WebDriverWait(driver, 10)\
@@ -103,16 +106,20 @@ class DroppedClassChecker:
                 .until(ec.visibility_of_element_located((By.ID, Utility.Login_Submit_Loc))).click()
 
             if Utility.Bookmarked_Login_Url == driver.current_url:
-                return DroppedClassChecker.goto_login(driver, "", "")
+                return DroppedClassChecker.goto_login(driver, username, password)
             elif driver.current_url == Utility.Password_Error_Url:
-                print("Invalid login username or password provided")
+                print(Utility.TAB+Utility.INVALID_USERNAME_PASSWORD)
                 username, password = Utility.get_login_cred()
                 return DroppedClassChecker.goto_login(driver, username, password)
             else:
                 return driver
         except TimeoutException as te:
+            driver.close()
+            print(te.msg, te.args)
             traceback.print_tb(te.__traceback__)
         except Exception as e:
+            driver.close()
+            print(e.args)
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
@@ -121,30 +128,34 @@ class DroppedClassChecker:
             driver.get(Utility.StudentSrvCtr_Url)
             return driver
         except TimeoutException as t:
+            driver.close()
+            print(t.msg, t.args)
             traceback.print_tb(t.__traceback__)
         except Exception as e:
+            driver.close()
+            print(e.args)
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
     def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check):
-        fr = WebDriverWait(driver, 10).until(ec.visibility_of_element_located((By.ID, Utility.StudentSrvCtr_Frame_Loc)))
-        driver.switch_to.frame(fr)
-        driver.find_element_by_id(Utility.StudentEmpl_Loc).send_keys(empl_id)
-        driver.find_element_by_class_name(Utility.StudentEmplSrch_Loc).click()
-
-        WebDriverWait(driver, 10)\
-            .until(ec.visibility_of_element_located((By.ID, Utility.StudentCourseHis_Loc)))\
-            .find_elements_by_tag_name("option")[1].click()
-
-        driver.find_element_by_id(Utility.StudentCourseHisLoader_Loc).click()
-
         try:
-            table = WebDriverWait(driver, 10)\
-                .until(ec.visibility_of_element_located((By.CLASS_NAME, Utility.StudentCourseHisTable_Loc)))
+            fr = WebDriverWait(driver, 10)\
+                .until(ec.visibility_of_element_located((By.ID, Utility.StudentSrvCtr_Frame_Loc)))
+            driver.switch_to.frame(fr)
+            driver.find_element_by_id(Utility.StudentEmpl_Loc).send_keys(empl_id)
+            driver.find_element_by_class_name(Utility.StudentEmplSrch_Loc).click()
 
-            time.sleep(3)
+            WebDriverWait(driver, 10)\
+                .until(ec.visibility_of_element_located((By.ID, Utility.StudentCourseHis_Loc)))\
+                .find_elements_by_tag_name("option")[1].click()
 
-            classes = table.find_element_by_tag_name("tbody").find_elements_by_tag_name("tr")
+            driver.find_element_by_id(Utility.StudentCourseHisLoader_Loc).click()
+
+            time.sleep(4)
+
+            classes = WebDriverWait(driver, 10)\
+                .until(ec.visibility_of_element_located((By.CLASS_NAME, Utility.StudentCourseHisTable_Loc)))\
+                .find_element_by_tag_name("tbody").find_elements_by_tag_name("tr")
 
             subject_to_check = subject_to_check.lower()
             term_to_check = term_to_check.lower()
@@ -162,7 +173,17 @@ class DroppedClassChecker:
                         if course.startswith(subject_to_check) and next_course > sub_level_to_check\
                                 and (term == term_to_check or term == next_trm) and len(grade) == 0:
                             print("Student is flagged for course -> ", course, term, " - for next term")
+        except NoSuchElementException as ne:
+            driver.close()
+            print(ne.msg, ne.args)
+            traceback.print_tb(ne.__traceback__)
+        except TimeoutException as te:
+            driver.close()
+            print(te.msg, te.args)
+            traceback.print_tb(te.__traceback__)
         except Exception as e:
+            driver.close()
+            print(e.args)
             traceback.print_tb(e.__traceback__)
         return driver
 
@@ -176,16 +197,26 @@ class DroppedClassChecker:
 
 
 if __name__ == "__main__":
+    csv_file = None
+    driver = None
     try:
         Utility.check_dir_and_get_drop_file()
+
         csv_file = Utility.to_csv(Utility._PATH_TO_FILE)
-        print(csv_file)
-        time.sleep(50)
-        Utility.delete_temp_csv(csv_file)
-        # browser = webdriver.Chrome()
-        # browser.maximize_window()
-        # browser = FailedClassCheck.goto_login(browser, "Hamidur.rahman7", "")
-        # browser = FailedClassCheck.apply_empl_id_course\
-        #     (FailedClassCheck.goto_student_service(browser), "23731174", "MAT", "201", "2020 spring term")
+
+        username, password = Utility.get_login_cred()
+
+        driver = webdriver.Chrome()
+        driver.maximize_window()
+
+        driver = DroppedClassChecker.goto_login(driver, username, password)
+
+        driver = DroppedClassChecker.apply_empl_id_course\
+            (DroppedClassChecker.goto_student_service(driver), "23731174", "MAT", "201", "2020 spring term")
+
+        driver.close()
     except FileNotFoundError as f:
-        print(f)
+        print(f.args)
+    finally:
+        if type(csv_file) is str:
+            Utility.delete_temp_csv(csv_file)
