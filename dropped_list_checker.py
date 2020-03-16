@@ -4,6 +4,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+import getpass
 import time
 import re
 import traceback
@@ -73,8 +74,8 @@ class Utility:
 
     @staticmethod
     def get_login_cred():
-        username = input(str("Enter CUNYfirst Username: "))
-        password = input(str("Enter CUNYfirst Password: "))
+        username = str(input("Enter CUNYfirst Username: "))
+        password = getpass.getpass(prompt="Enter CUNYfirst Password: ", stream=None)
         return username, password
 
     @staticmethod
@@ -200,21 +201,22 @@ if __name__ == "__main__":
     csv_file = None
     driver = None
     try:
-        Utility.check_dir_and_get_drop_file()
-
-        csv_file = Utility.to_csv(Utility._PATH_TO_FILE)
-
-        username, password = Utility.get_login_cred()
-
-        driver = webdriver.Chrome()
-        driver.maximize_window()
-
-        driver = DroppedClassChecker.goto_login(driver, username, password)
-
-        driver = DroppedClassChecker.apply_empl_id_course\
-            (DroppedClassChecker.goto_student_service(driver), "23731174", "MAT", "201", "2020 spring term")
-
-        driver.close()
+        print(Utility.get_login_cred())
+        # Utility.check_dir_and_get_drop_file()
+        #
+        # csv_file = Utility.to_csv(Utility._PATH_TO_FILE)
+        #
+        # username, password = Utility.get_login_cred()
+        #
+        # driver = webdriver.Chrome()
+        # driver.maximize_window()
+        #
+        # driver = DroppedClassChecker.goto_login(driver, username, password)
+        #
+        # driver = DroppedClassChecker.apply_empl_id_course\
+        #     (DroppedClassChecker.goto_student_service(driver), "23731174", "MAT", "201", "2020 spring term")
+        #
+        # driver.close()
     except FileNotFoundError as f:
         print(f.args)
     finally:
