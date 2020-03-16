@@ -7,7 +7,6 @@ from selenium.webdriver.support.wait import WebDriverWait
 import time
 import re
 import traceback
-import getpass
 import os
 import pandas
 import platform
@@ -38,11 +37,17 @@ class Utility:
     _PATH_TO_FILE = None
 
     @staticmethod
-    def get_droplist_file():
+    def delete_temp_csv(file_path):
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    @staticmethod
+    def check_dir_and_get_drop_file():
         try:
-            if platform.system().lower() == "darwin":
+            os_name = platform.system().lower()
+            if os_name == "darwin" or os_name == "linux":
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist/"
-            elif platform.system().lower() == "windows":
+            elif os_name == "windows":
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist"
             if not os.path.isdir(Utility._PATH_TO_FILE):
                 raise FileNotFoundError("Directory does not exists, dir="+Utility._PATH_TO_FILE)
@@ -172,8 +177,11 @@ class DroppedClassChecker:
 
 if __name__ == "__main__":
     try:
-        drop_file = Utility.get_droplist_file()
-        print(drop_file, os.path.isfile(drop_file))
+        Utility.check_dir_and_get_drop_file()
+        csv_file = Utility.to_csv(Utility._PATH_TO_FILE)
+        print(csv_file)
+        time.sleep(50)
+        Utility.delete_temp_csv(csv_file)
         # browser = webdriver.Chrome()
         # browser.maximize_window()
         # browser = FailedClassCheck.goto_login(browser, "Hamidur.rahman7", "")
