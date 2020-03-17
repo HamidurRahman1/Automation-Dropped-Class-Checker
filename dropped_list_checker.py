@@ -11,6 +11,7 @@ import traceback
 import os
 import pandas
 import platform
+import csv
 
 
 class Utility:
@@ -43,7 +44,6 @@ class Utility:
 
     GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
 
-    INVALID_USERNAME_PASSWORD = "Invalid login username or password provided"
     TAB = "\t=> "
 
     @staticmethod
@@ -60,13 +60,15 @@ class Utility:
             elif os_name == Utility.OS_WINDOWS:
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
             if not os.path.isdir(Utility._PATH_TO_FILE):
-                raise FileNotFoundError(Utility.TAB+"Directory does not exists, dir="+Utility._PATH_TO_FILE)
+                raise FileNotFoundError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
+                                                    "_droplist_ in downloads directory")
             files = list()
             for file in os.listdir(Utility._PATH_TO_FILE):
-                if file.endswith(".xlsx"):
+                if file.endswith(".csv"):
                     files.append(file)
             if len(files) != 1:
-                raise FileExistsError(Utility.TAB+Utility._PATH_TO_FILE+" must contain only one file but found "+str(len(files)))
+                raise FileExistsError(Utility.TAB+Utility._PATH_TO_FILE
+                                      +" folder must contain only one file but found "+str(len(files)))
             Utility._PATH_TO_FILE += str(files[0])
             return Utility._PATH_TO_FILE
         except FileNotFoundError as fn:
@@ -113,7 +115,7 @@ class DroppedClassChecker:
             if Utility.Bookmarked_Login_Url == driver.current_url:
                 return DroppedClassChecker.goto_login(driver, username, password)
             elif driver.current_url == Utility.Password_Error_Url:
-                print(Utility.TAB+Utility.INVALID_USERNAME_PASSWORD)
+                print(Utility.TAB+"Invalid login username or password provided")
                 username, password = Utility.get_login_cred()
                 return DroppedClassChecker.goto_login(driver, username, password)
             else:
@@ -142,7 +144,7 @@ class DroppedClassChecker:
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
-    def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check):
+    def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check, row, file_writer):
         try:
             fr = WebDriverWait(driver, 10)\
                 .until(ec.visibility_of_element_located((By.ID, Utility.StudentSrvCtr_Frame_Loc)))
@@ -169,15 +171,26 @@ class DroppedClassChecker:
 
             if len(classes) > 0:
                 for r in range(0, len(classes)-1):
-                    course = str(driver.find_element_by_id(Utility.DY_Student_CrsName_Loc+str(r)).text).lower()
-                    grade = str(driver.find_element_by_id(Utility.DY_Student_Grade_Loc+str(r)).text).lower().strip()
-                    term = str(driver.find_element_by_id(Utility.DY_Student_Term_Loc+str(r)).text).lower()
+                    course = str((WebDriverWait(driver, 10).until(ec.visibility_of_element_located
+                        ((By.ID, Utility.DY_Student_CrsName_Loc+str(r)))).text)).lower()
+
+                    grade = str((WebDriverWait(driver, 10).until(ec.visibility_of_element_located
+                        ((By.ID, Utility.DY_Student_Grade_Loc+str(r)))).text)).lower().strip()
+
+                    term = str((WebDriverWait(driver, 10).until(ec.visibility_of_element_located
+                        ((By.ID, Utility.DY_Student_Term_Loc+str(r)))).text)).lower()
+
+                    # course = str(driver.find_element_by_id(Utility.DY_Student_CrsName_Loc+str(r)).text).lower()
+                    # grade = str(driver.find_element_by_id(Utility.DY_Student_Grade_Loc+str(r)).text).lower().strip()
+                    # term = str(driver.find_element_by_id(Utility.DY_Student_Term_Loc+str(r)).text).lower()
+
                     parts = course.split()
                     if parts[1].isdigit():
                         next_course = int(parts[1])
                         if course.startswith(subject_to_check) and next_course > sub_level_to_check\
                                 and (term == term_to_check or term == next_trm) and len(grade) == 0:
-                            print("Student is flagged for course -> ", course, term, " - for next term")
+                            # print("Student is flagged for course -> ", course, term, " - for next term")
+                            return True
         except NoSuchElementException as ne:
             driver.close()
             print(ne.msg, ne.args)
@@ -190,7 +203,6 @@ class DroppedClassChecker:
             driver.close()
             print(e.args)
             traceback.print_tb(e.__traceback__)
-        return driver
 
     @staticmethod
     def next_term(this_term):
@@ -204,26 +216,40 @@ class DroppedClassChecker:
 if __name__ == "__main__":
     csv_file = None
     driver = None
+    file_reader = None
+    file_writer = None
     try:
-        print(Utility.get_login_cred())
-        # Utility.check_dir_and_get_drop_file()
-        #
-        # csv_file = Utility.to_csv(Utility._PATH_TO_FILE)
-        #
+        csv_file = Utility.check_dir_and_get_drop_file()
+
+        # term = Utility.get_term()
+        term = "2019 fall term"
         # username, password = Utility.get_login_cred()
-        #
-        # driver = webdriver.Chrome()
-        # driver.maximize_window()
-        #
-        # driver = DroppedClassChecker.goto_login(driver, username, password)
-        #
-        # driver = DroppedClassChecker.apply_empl_id_course\
-        #     (DroppedClassChecker.goto_student_service(driver), "23731174", "MAT", "201", "2020 spring term")
-        #
-        # driver.close()
+
+        file_reader = csv.DictReader(open(csv_file, "r"))
+        fields = file_reader.fieldnames
+
+        file_writer = csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
+                                     fieldnames=file_reader.fieldnames,
+                                     delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL, )
+
+        file_writer.writeheader()
+
+        driver = webdriver.Chrome()
+        driver.maximize_window()
+        driver = DroppedClassChecker.goto_login(driver, username, password)
+
+        for student in file_reader:
+            if DroppedClassChecker.apply_empl_id_course\
+            (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
+             student["Catalog"], term, student, file_writer):
+                file_writer.writerow(student)
+
     except FileNotFoundError as f:
         print(f.args)
         exit(0)
     finally:
         if type(csv_file) is str:
-            Utility.delete_temp_csv(csv_file)
+            driver.close()
+            file_reader.close()
+            file_writer.close()
+
