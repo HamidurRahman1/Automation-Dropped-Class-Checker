@@ -12,6 +12,7 @@ import os
 import pandas
 import platform
 import csv
+import datetime
 
 
 class Utility:
@@ -42,9 +43,33 @@ class Utility:
 
     _PATH_TO_FILE = None
 
-    GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
+    REPEATABLE_GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
 
     TAB = "\t=> "
+
+    @staticmethod
+    def get_term():
+        try:
+            term = str(input("Enter the current term: "))
+            parts = term.lower().split()
+            if len(parts) != 2:
+                raise AttributeError("Invalid term entered, given="+term)
+            now = datetime.datetime.now()
+            year = int(parts[0].strip())
+            if int(now.year) != year or int(now.year+1) != year:
+                raise AttributeError("Expected1 year="+str(now.year) + " but found " + parts[0])
+            if str(parts[1]).lower() != "spring" or str(parts[1]).lower() != "fall":
+                raise AttributeError("Expected2 spring or fall, found="+str(parts[0]) + " " + str(parts[1]))
+            return parts[0]+" "+parts[1]+" term"
+        except ValueError:
+            print("Expected3 year="+str(now.year) + " or " + str(str(now.year+1)) + " but found " + parts[0])
+            return Utility.get_term()
+        except AttributeError as ae:
+            print(ae.args[0])
+            return Utility.get_term()
+        except Exception as e:
+            print(e.args)
+            return Utility.get_term()
 
     @staticmethod
     def delete_temp_csv(file_path):
@@ -58,7 +83,7 @@ class Utility:
             if os_name == Utility.OS_MAC or os_name == Utility.OS_LINUX:
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
             elif os_name == Utility.OS_WINDOWS:
-                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
+                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_\\"
             if not os.path.isdir(Utility._PATH_TO_FILE):
                 raise FileNotFoundError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
                                                     "_droplist_ in downloads directory")
@@ -68,7 +93,7 @@ class Utility:
                     files.append(file)
             if len(files) != 1:
                 raise FileExistsError(Utility.TAB+Utility._PATH_TO_FILE
-                                      +" folder must contain only one file but found "+str(len(files)))
+                                      + " folder must contain only one file but found " + str(len(files)))
             Utility._PATH_TO_FILE += str(files[0])
             return Utility._PATH_TO_FILE
         except FileNotFoundError as fn:
@@ -171,6 +196,7 @@ class DroppedClassChecker:
 
             if len(classes) > 0:
                 for r in range(0, len(classes)-1):
+
                     course = str((WebDriverWait(driver, 10).until(ec.visibility_of_element_located
                         ((By.ID, Utility.DY_Student_CrsName_Loc+str(r)))).text)).lower()
 
@@ -179,10 +205,6 @@ class DroppedClassChecker:
 
                     term = str((WebDriverWait(driver, 10).until(ec.visibility_of_element_located
                         ((By.ID, Utility.DY_Student_Term_Loc+str(r)))).text)).lower()
-
-                    # course = str(driver.find_element_by_id(Utility.DY_Student_CrsName_Loc+str(r)).text).lower()
-                    # grade = str(driver.find_element_by_id(Utility.DY_Student_Grade_Loc+str(r)).text).lower().strip()
-                    # term = str(driver.find_element_by_id(Utility.DY_Student_Term_Loc+str(r)).text).lower()
 
                     parts = course.split()
                     if parts[1].isdigit():
@@ -219,37 +241,38 @@ if __name__ == "__main__":
     file_reader = None
     file_writer = None
     try:
-        csv_file = Utility.check_dir_and_get_drop_file()
-
-        # term = Utility.get_term()
-        term = "2019 fall term"
-        # username, password = Utility.get_login_cred()
-
-        file_reader = csv.DictReader(open(csv_file, "r"))
-        fields = file_reader.fieldnames
-
-        file_writer = csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
-                                     fieldnames=file_reader.fieldnames,
-                                     delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL, )
-
-        file_writer.writeheader()
-
-        driver = webdriver.Chrome()
-        driver.maximize_window()
-        driver = DroppedClassChecker.goto_login(driver, username, password)
-
-        for student in file_reader:
-            if DroppedClassChecker.apply_empl_id_course\
-            (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
-             student["Catalog"], term, student, file_writer):
-                file_writer.writerow(student)
-
+        print(Utility.get_term())
+    #     csv_file = Utility.check_dir_and_get_drop_file()
+    #
+    #     term = Utility.get_term()
+    #     username, password = Utility.get_login_cred()
+    #
+    #     file_reader = csv.DictReader(open(csv_file, "r"))
+    #     fields = file_reader.fieldnames
+    #
+    #     file_writer = \
+    #         csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
+    #                        fieldnames=file_reader.fieldnames, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #
+    #     file_writer.writeheader()
+    #
+    #     driver = webdriver.Chrome()
+    #     driver.maximize_window()
+    #     driver = DroppedClassChecker.goto_login(driver, username, password)
+    #
+    #     for student in file_reader:
+    #         if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
+    #             if DroppedClassChecker.apply_empl_id_course\
+    #             (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
+    #              student["Catalog"], term, student, file_writer):
+    #                 file_writer.writerow(student)
+    #
     except FileNotFoundError as f:
         print(f.args)
         exit(0)
-    finally:
-        if type(csv_file) is str:
-            driver.close()
-            file_reader.close()
-            file_writer.close()
+    # finally:
+    #     if type(csv_file) is str:
+    #         driver.close()
+    #         file_reader.close()
+    #         file_writer.close()
 
