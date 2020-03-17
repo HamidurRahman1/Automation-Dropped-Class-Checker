@@ -35,10 +35,6 @@ class Utility:
     DY_Student_Grade_Loc = "CRSE_GRADE$"
     DY_Student_Term_Loc = "CRSE_TERM$"
 
-    OS_WINDOWS = "windows"
-    OS_MAC = "darwin"
-    OS_LINUX = "linux"
-
     __DOWNLOAD_DIR = os.path.join(os.path.expanduser('~'), 'downloads')
 
     _PATH_TO_FILE = None
@@ -50,25 +46,25 @@ class Utility:
     @staticmethod
     def get_term():
         try:
-            term = str(input("Enter the current term: "))
+            term = str(input("Enter the current term: ")).strip()
             parts = term.lower().split()
             if len(parts) != 2:
                 raise AttributeError("Invalid term entered, given="+term)
             now = datetime.datetime.now()
             year = int(parts[0].strip())
-            if int(now.year) != year or int(now.year+1) != year:
-                raise AttributeError("Expected1 year="+str(now.year) + " but found " + parts[0])
-            if str(parts[1]).lower() != "spring" or str(parts[1]).lower() != "fall":
-                raise AttributeError("Expected2 spring or fall, found="+str(parts[0]) + " " + str(parts[1]))
+            if now.year != year and now.year+1 != year:
+                raise AttributeError("Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
+            if str(parts[1]).lower() != "spring" and str(parts[1]).lower() != "fall":
+                raise AttributeError("Expected spring or fall, found="+str(parts[1]+" as term name."))
             return parts[0]+" "+parts[1]+" term"
         except ValueError:
-            print("Expected3 year="+str(now.year) + " or " + str(str(now.year+1)) + " but found " + parts[0])
+            print(Utility.TAB+"Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
             return Utility.get_term()
         except AttributeError as ae:
-            print(ae.args[0])
+            print(Utility.TAB+ae.args[0])
             return Utility.get_term()
         except Exception as e:
-            print(e.args)
+            print(Utility.TAB+e.args[0])
             return Utility.get_term()
 
     @staticmethod
@@ -80,12 +76,12 @@ class Utility:
     def check_dir_and_get_drop_file():
         try:
             os_name = platform.system().lower()
-            if os_name == Utility.OS_MAC or os_name == Utility.OS_LINUX:
+            if os_name == "darwin" or os_name == "linux":
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
-            elif os_name == Utility.OS_WINDOWS:
+            elif os_name == "windows":
                 Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_\\"
             if not os.path.isdir(Utility._PATH_TO_FILE):
-                raise FileNotFoundError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
+                raise IsADirectoryError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
                                                     "_droplist_ in downloads directory")
             files = list()
             for file in os.listdir(Utility._PATH_TO_FILE):
@@ -96,8 +92,8 @@ class Utility:
                                       + " folder must contain only one file but found " + str(len(files)))
             Utility._PATH_TO_FILE += str(files[0])
             return Utility._PATH_TO_FILE
-        except FileNotFoundError as fn:
-            print(fn)
+        except IsADirectoryError as dir:
+            print(dir)
             exit(0)
         except FileExistsError as fe:
             print(fe)
@@ -147,11 +143,11 @@ class DroppedClassChecker:
                 return driver
         except TimeoutException as te:
             driver.close()
-            print(te.msg, te.args)
+            print(Utility.TAB, te.msg, te.args)
             traceback.print_tb(te.__traceback__)
         except Exception as e:
             driver.close()
-            print(e.args)
+            print(Utility.TAB, e.args)
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
@@ -161,11 +157,11 @@ class DroppedClassChecker:
             return driver
         except TimeoutException as t:
             driver.close()
-            print(t.msg, t.args)
+            print(Utility.TAB, t.msg, t.args)
             traceback.print_tb(t.__traceback__)
         except Exception as e:
             driver.close()
-            print(e.args)
+            print(Utility.TAB, e.args)
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
@@ -215,15 +211,15 @@ class DroppedClassChecker:
                             return True
         except NoSuchElementException as ne:
             driver.close()
-            print(ne.msg, ne.args)
+            print(Utility.TAB, ne.msg, ne.args)
             traceback.print_tb(ne.__traceback__)
         except TimeoutException as te:
             driver.close()
-            print(te.msg, te.args)
+            print(Utility.TAB, te.msg, te.args)
             traceback.print_tb(te.__traceback__)
         except Exception as e:
             driver.close()
-            print(e.args)
+            print(Utility.TAB, e.args)
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
@@ -241,38 +237,38 @@ if __name__ == "__main__":
     file_reader = None
     file_writer = None
     try:
-        print(Utility.get_term())
-    #     csv_file = Utility.check_dir_and_get_drop_file()
-    #
-    #     term = Utility.get_term()
-    #     username, password = Utility.get_login_cred()
-    #
-    #     file_reader = csv.DictReader(open(csv_file, "r"))
-    #     fields = file_reader.fieldnames
-    #
-    #     file_writer = \
-    #         csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
-    #                        fieldnames=file_reader.fieldnames, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    #
-    #     file_writer.writeheader()
-    #
-    #     driver = webdriver.Chrome()
-    #     driver.maximize_window()
-    #     driver = DroppedClassChecker.goto_login(driver, username, password)
-    #
-    #     for student in file_reader:
-    #         if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
-    #             if DroppedClassChecker.apply_empl_id_course\
-    #             (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
-    #              student["Catalog"], term, student, file_writer):
-    #                 file_writer.writerow(student)
-    #
+        csv_file = Utility.check_dir_and_get_drop_file()
+
+        term = Utility.get_term()
+        username, password = Utility.get_login_cred()
+
+        file_reader = csv.DictReader(open(csv_file, "r"))
+        fields = file_reader.fieldnames
+
+        file_writer = \
+            csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
+                           fieldnames=file_reader.fieldnames, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+        file_writer.writeheader()
+
+        driver = webdriver.Chrome()
+        driver.maximize_window()
+        driver = DroppedClassChecker.goto_login(driver, username, password)
+
+        for student in file_reader:
+            if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
+                if DroppedClassChecker.apply_empl_id_course\
+                (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
+                 student["Catalog"], term, student, file_writer):
+                    file_writer.writerow(student)
     except FileNotFoundError as f:
-        print(f.args)
+        print(Utility.TAB, f.args[0])
         exit(0)
-    # finally:
-    #     if type(csv_file) is str:
-    #         driver.close()
-    #         file_reader.close()
-    #         file_writer.close()
+    except KeyboardInterrupt as k:
+        print(Utility.TAB, k.args[0])
+    finally:
+        if type(csv_file) is str:
+            driver.close()
+            file_reader.close()
+            file_writer.close()
 
