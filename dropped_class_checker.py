@@ -7,7 +7,6 @@ from selenium.webdriver.support.wait import WebDriverWait
 import getpass
 import time
 import re
-import traceback
 import os
 import pandas
 import platform
@@ -78,11 +77,11 @@ class Utility:
         try:
             os_name = platform.system().lower()
             if os_name == "darwin" or os_name == "linux":
-                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_"
-                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"/StudentsToBeChecked.csv"
+                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
+                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"StudentsToBeChecked.csv"
             elif os_name == "windows":
-                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
-                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"\\StudentsToBeChecked.csv"
+                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_\\"
+                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"StudentsToBeChecked.csv"
             if not os.path.isdir(Utility.PATH_TO_READ_FILE):
                 raise IsADirectoryError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
                                                     "_droplist_ in downloads directory")
@@ -147,11 +146,9 @@ class DroppedClassChecker:
         except TimeoutException as te:
             driver.close()
             print(Utility.TAB, te.msg, te.args)
-            traceback.print_tb(te.__traceback__)
         except Exception as e:
             driver.close()
             print(Utility.TAB, e.args)
-            traceback.print_tb(e.__traceback__)
 
     @staticmethod
     def goto_student_service(driver):
@@ -161,11 +158,9 @@ class DroppedClassChecker:
         except TimeoutException as t:
             driver.close()
             print(Utility.TAB, t.msg, t.args)
-            traceback.print_tb(t.__traceback__)
         except Exception as e:
             driver.close()
             print(Utility.TAB, e.args)
-            traceback.print_tb(e.__traceback__)
 
     @staticmethod
     def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check):
@@ -173,6 +168,7 @@ class DroppedClassChecker:
             fr = WebDriverWait(driver, 10)\
                 .until(ec.visibility_of_element_located((By.ID, Utility.StudentSrvCtr_Frame_Loc)))
             driver.switch_to.frame(fr)
+            driver.find_element_by_id(Utility.StudentEmpl_Loc).clear()
             driver.find_element_by_id(Utility.StudentEmpl_Loc).send_keys(empl_id)
             driver.find_element_by_class_name(Utility.StudentEmplSrch_Loc).click()
 
@@ -214,15 +210,12 @@ class DroppedClassChecker:
         except NoSuchElementException as ne:
             driver.close()
             print(Utility.TAB, ne.msg, ne.args)
-            traceback.print_tb(ne.__traceback__)
         except TimeoutException as te:
             driver.close()
             print(Utility.TAB, te.msg, te.args)
-            traceback.print_tb(te.__traceback__)
         except Exception as e:
             driver.close()
             print(Utility.TAB, e.args)
-            traceback.print_tb(e.__traceback__)
 
     @staticmethod
     def next_term(this_term):
@@ -258,6 +251,9 @@ if __name__ == "__main__":
         driver = DroppedClassChecker.goto_login(driver, username, password)
 
         for student in csv_reader:
+            if len(str(student["Grade In"]).strip()) == 0:
+                csv_writer.writerow(student)
+                continue
             if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
                 if DroppedClassChecker\
                         .apply_empl_id_course(DroppedClassChecker.goto_student_service(driver),
@@ -269,9 +265,16 @@ if __name__ == "__main__":
         exit(0)
     except KeyboardInterrupt as k:
         print(Utility.TAB, k.args[0])
+        exit(0)
+    except TimeoutException as te:
+        print(Utility.TAB, te.msg, te.args, te.screen)
+        exit(0)
+    except Exception as e:
+        print(Utility.TAB, e.args)
+        exit(0)
     finally:
-        if type(csv_file) is str:
-            driver.close()
+        if csv_file is str:
             file_reader.close()
             file_writer.close()
-
+        if driver is not None:
+            driver.close()
