@@ -37,7 +37,8 @@ class Utility:
 
     __DOWNLOAD_DIR = os.path.join(os.path.expanduser('~'), 'downloads')
 
-    _PATH_TO_FILE = None
+    PATH_TO_READ_FILE = None
+    PATH_TO_WRITE_FILE = None
 
     REPEATABLE_GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
 
@@ -58,7 +59,7 @@ class Utility:
                 raise AttributeError("Expected spring or fall, found="+str(parts[1]+" as term name."))
             return parts[0]+" "+parts[1]+" term"
         except ValueError:
-            print(Utility.TAB+"Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
+            print(Utility.TAB, "Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
             return Utility.get_term()
         except AttributeError as ae:
             print(Utility.TAB+ae.args[0])
@@ -77,21 +78,23 @@ class Utility:
         try:
             os_name = platform.system().lower()
             if os_name == "darwin" or os_name == "linux":
-                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_/"
+                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"/_droplist_"
+                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"/StudentsToBeChecked.csv"
             elif os_name == "windows":
-                Utility._PATH_TO_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_\\"
-            if not os.path.isdir(Utility._PATH_TO_FILE):
+                Utility.PATH_TO_READ_FILE = Utility.__DOWNLOAD_DIR+"\\_droplist_"
+                Utility.PATH_TO_WRITE_FILE = Utility.PATH_TO_READ_FILE+"\\StudentsToBeChecked.csv"
+            if not os.path.isdir(Utility.PATH_TO_READ_FILE):
                 raise IsADirectoryError(Utility.TAB+"Directory does not exists. PLease create an empty folder name "
                                                     "_droplist_ in downloads directory")
             files = list()
-            for file in os.listdir(Utility._PATH_TO_FILE):
+            for file in os.listdir(Utility.PATH_TO_READ_FILE):
                 if file.endswith(".csv"):
                     files.append(file)
             if len(files) != 1:
-                raise FileExistsError(Utility.TAB+Utility._PATH_TO_FILE
+                raise FileExistsError(Utility.TAB+Utility.PATH_TO_READ_FILE
                                       + " folder must contain only one file but found " + str(len(files)))
-            Utility._PATH_TO_FILE += str(files[0])
-            return Utility._PATH_TO_FILE
+            Utility.PATH_TO_READ_FILE += str(files[0])
+            return Utility.PATH_TO_READ_FILE
         except IsADirectoryError as dir:
             print(dir)
             exit(0)
@@ -165,7 +168,7 @@ class DroppedClassChecker:
             traceback.print_tb(e.__traceback__)
 
     @staticmethod
-    def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check, row, file_writer):
+    def apply_empl_id_course(driver, empl_id, subject_to_check, sub_level_to_check, term_to_check):
         try:
             fr = WebDriverWait(driver, 10)\
                 .until(ec.visibility_of_element_located((By.ID, Utility.StudentSrvCtr_Frame_Loc)))
@@ -207,7 +210,6 @@ class DroppedClassChecker:
                         next_course = int(parts[1])
                         if course.startswith(subject_to_check) and next_course > sub_level_to_check\
                                 and (term == term_to_check or term == next_trm) and len(grade) == 0:
-                            # print("Student is flagged for course -> ", course, term, " - for next term")
                             return True
         except NoSuchElementException as ne:
             driver.close()
@@ -225,10 +227,10 @@ class DroppedClassChecker:
     @staticmethod
     def next_term(this_term):
         parts = this_term.lower().split()
-        if parts[1] == "fall":
-            return str(int(parts[0])+1)+str(" spring term")
+        if parts[1].strip() == "fall":
+            return str(int(parts[0].strip())+1)+str(" spring term")
         else:
-            return parts[0]+" fall term"
+            return parts[0].strip()+" fall term"
 
 
 if __name__ == "__main__":
@@ -242,25 +244,26 @@ if __name__ == "__main__":
         term = Utility.get_term()
         username, password = Utility.get_login_cred()
 
-        file_reader = csv.DictReader(open(csv_file, "r"))
-        fields = file_reader.fieldnames
+        file_reader = open(csv_file, "r")
+        csv_reader = csv.DictReader(file_reader)
 
-        file_writer = \
-            csv.DictWriter(open("/Users/hamidurrahman/Downloads/_droplist_/StudentsToBeChecked.csv", "w"),
-                           fieldnames=file_reader.fieldnames, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        file_writer = open(Utility.PATH_TO_WRITE_FILE, "w")
+        csv_writer = csv.DictWriter(file_writer, fieldnames=csv_reader.fieldnames,
+                                    delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-        file_writer.writeheader()
+        csv_writer.writeheader()
 
         driver = webdriver.Chrome()
         driver.maximize_window()
         driver = DroppedClassChecker.goto_login(driver, username, password)
 
-        for student in file_reader:
+        for student in csv_reader:
             if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
-                if DroppedClassChecker.apply_empl_id_course\
-                (DroppedClassChecker.goto_student_service(driver), student["ID"], student["Subject"],
-                 student["Catalog"], term, student, file_writer):
-                    file_writer.writerow(student)
+                if DroppedClassChecker\
+                        .apply_empl_id_course(DroppedClassChecker.goto_student_service(driver),
+                        student["ID"], student["Subject"], student["Catalog"], term):
+                    csv_writer.writerow(student)
+
     except FileNotFoundError as f:
         print(Utility.TAB, f.args[0])
         exit(0)
