@@ -52,13 +52,15 @@ class Utility:
                 raise AttributeError("Invalid term entered, given="+term)
             now = datetime.datetime.now()
             year = int(parts[0].strip())
-            if now.year != year and now.year+1 != year:
-                raise AttributeError("Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
+            if now.year != year and now.year+1 != year and now.year-1 != year:
+                raise AttributeError("Expected year=" + str(now.year-1)
+                                     + " or " + str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
             if str(parts[1]).lower() != "spring" and str(parts[1]).lower() != "fall":
                 raise AttributeError("Expected spring or fall, found="+str(parts[1]+" as term name."))
             return parts[0]+" "+parts[1]+" term"
         except ValueError:
-            print(Utility.TAB, "Expected year="+str(now.year) + " or " + str(now.year+1) + " but found " + parts[0])
+            print(Utility.TAB, ("Expected year=" + str(now.year-1)
+                                + " or " + str(now.year) + " or " + str(now.year) + " but found " + parts[0]))
             return Utility.get_term()
         except AttributeError as ae:
             print(Utility.TAB+ae.args[0])
@@ -202,11 +204,10 @@ class DroppedClassChecker:
                         ((By.ID, Utility.DY_Student_Term_Loc+str(r)))).text)).lower()
 
                     parts = course.split()
-                    if parts[1].isdigit():
-                        next_course = int(parts[1])
-                        if course.startswith(subject_to_check) and next_course > sub_level_to_check\
-                                and (term == term_to_check or term == next_trm) and len(grade) == 0:
-                            return True
+                    if parts[1].isdigit() and course.startswith(subject_to_check) \
+                            and (term == term_to_check or term == next_trm) and len(grade) == 0:
+                        return DroppedClassChecker.next_course_level_checker(subject_to_check, int(parts[1]))
+
         except NoSuchElementException as ne:
             driver.close()
             print(Utility.TAB, ne.msg, ne.args)
@@ -216,6 +217,14 @@ class DroppedClassChecker:
         except Exception as e:
             driver.close()
             print(Utility.TAB, e.args)
+
+    @staticmethod
+    def next_course_level_checker(subject, next_level):
+        if subject == 'mat':
+            if next_level in {99, 117, 119, 123}:
+                return False
+            else:
+                return True
 
     @staticmethod
     def next_term(this_term):
