@@ -39,7 +39,7 @@ class Utility:
     PATH_TO_READ_FILE = None
     PATH_TO_WRITE_FILE = None
 
-    REPEATABLE_GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc"}
+    REPEATABLE_GRADES = {"w", "wa", "wn", "wd", "wu", "r", "u", "f", "inc", "nc"}
 
     TAB = "\t=> "
 
@@ -60,7 +60,7 @@ class Utility:
             return parts[0]+" "+parts[1]+" term"
         except ValueError:
             print(Utility.TAB, ("Expected year=" + str(now.year-1)
-                                + " or " + str(now.year) + " or " + str(now.year) + " but found " + parts[0]))
+                                + " or " + str(now.year) + " or " + str(now.year+1) + " but found " + parts[0]))
             return Utility.get_term()
         except AttributeError as ae:
             print(Utility.TAB+ae.args[0])
@@ -206,7 +206,7 @@ class DroppedClassChecker:
                     parts = course.split()
                     if parts[1].isdigit() and course.startswith(subject_to_check) \
                             and (term == term_to_check or term == next_trm) and len(grade) == 0:
-                        return DroppedClassChecker.next_course_level_checker(subject_to_check, int(parts[1]))
+                        return DroppedClassChecker.next_course_level_checker(subject_to_check, sub_level_to_check, int(parts[1]))
 
         except NoSuchElementException as ne:
             driver.close()
@@ -219,12 +219,34 @@ class DroppedClassChecker:
             print(Utility.TAB, e.args)
 
     @staticmethod
-    def next_course_level_checker(subject, next_level):
+    def next_course_level_checker(subject, sub_level, next_level):
         if subject == 'mat':
-            if next_level in {99, 117, 119, 123}:
+            return DroppedClassChecker.check_math(sub_level, next_level)
+
+    @staticmethod
+    def check_math(sub_level, next_level):
+        if sub_level == 96 or sub_level == 99 or sub_level == 117 or sub_level == 119 or sub_level == 123:
+            if next_level in {96, 99, 117, 119, 123, 241}:
                 return False
             else:
                 return True
+        if sub_level == 104 or sub_level == 105 or sub_level == 106 or sub_level == 107:
+            if next_level >= 200:
+                return True
+        if sub_level == 115:
+            if next_level >= 200:
+                return True
+        if sub_level == 120:
+            if next_level >= 120:
+                return True
+        if sub_level == 241:
+            if next_level >= 242:
+                return True
+        if sub_level >= 200:
+            if next_level >= 201:
+                return True
+        else:
+            return True
 
     @staticmethod
     def next_term(this_term):
@@ -264,8 +286,7 @@ if __name__ == "__main__":
                 csv_writer.writerow(student)
                 continue
             if str(student["Grade In"]).lower() in Utility.REPEATABLE_GRADES:
-                if DroppedClassChecker\
-                        .apply_empl_id_course(DroppedClassChecker.goto_student_service(driver),
+                if DroppedClassChecker.apply_empl_id_course(DroppedClassChecker.goto_student_service(driver),
                         student["ID"], student["Subject"], student["Catalog"], term):
                     csv_writer.writerow(student)
 
