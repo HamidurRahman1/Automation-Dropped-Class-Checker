@@ -98,10 +98,8 @@ class Utility:
             return Utility.PATH_TO_READ_FILE
         except IsADirectoryError as dir:
             print(dir)
-            exit(0)
         except FileExistsError as fe:
             print(fe)
-            exit(0)
 
     @staticmethod
     def get_login_cred():
@@ -146,10 +144,8 @@ class DroppedClassChecker:
             else:
                 return driver
         except TimeoutException as te:
-            driver.close()
             print(Utility.TAB, te.msg, te.args)
         except Exception as e:
-            driver.close()
             print(Utility.TAB, e.args)
 
     @staticmethod
@@ -158,10 +154,8 @@ class DroppedClassChecker:
             driver.get(Utility.StudentSrvCtr_Url)
             return driver
         except TimeoutException as t:
-            driver.close()
             print(Utility.TAB, t.msg, t.args)
         except Exception as e:
-            driver.close()
             print(Utility.TAB, e.args)
 
     @staticmethod
@@ -180,7 +174,7 @@ class DroppedClassChecker:
 
             driver.find_element_by_id(Utility.StudentCourseHisLoader_Loc).click()
 
-            time.sleep(4)
+            time.sleep(3)
 
             classes = WebDriverWait(driver, 10)\
                 .until(ec.visibility_of_element_located((By.CLASS_NAME, Utility.StudentCourseHisTable_Loc)))\
@@ -209,13 +203,10 @@ class DroppedClassChecker:
                         return DroppedClassChecker.next_course_level_checker(subject_to_check, sub_level_to_check, int(parts[1]))
 
         except NoSuchElementException as ne:
-            driver.close()
             print(Utility.TAB, ne.msg, ne.args)
         except TimeoutException as te:
-            driver.close()
             print(Utility.TAB, te.msg, te.args)
         except Exception as e:
-            driver.close()
             print(Utility.TAB, e.args)
 
     @staticmethod
@@ -246,7 +237,7 @@ class DroppedClassChecker:
             if next_level >= 201:
                 return True
         else:
-            return True
+            return False
 
     @staticmethod
     def next_term(this_term):
@@ -282,6 +273,7 @@ if __name__ == "__main__":
         driver = DroppedClassChecker.goto_login(driver, username, password)
 
         for student in csv_reader:
+            print(student["ID"], "=>", student)
             if len(str(student["Grade In"]).strip()) == 0:
                 csv_writer.writerow(student)
                 continue
@@ -292,19 +284,16 @@ if __name__ == "__main__":
 
     except FileNotFoundError as f:
         print(Utility.TAB, f.args[0])
-        exit(0)
     except KeyboardInterrupt as k:
         print(Utility.TAB, k.args[0])
-        exit(0)
     except TimeoutException as te:
         print(Utility.TAB, te.msg, te.args, te.screen)
-        exit(0)
     except Exception as e:
         print(Utility.TAB, e.args)
-        exit(0)
     finally:
         if csv_file is str:
             file_reader.close()
             file_writer.close()
         if driver is not None:
             driver.close()
+        exit(1)
